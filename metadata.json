@@ -1,0 +1,6 @@
+{
+  "name": "Omarchy Audio Share Plugin",
+  "description": "Omarchy Quickshell plugin & interactive studio for combining multiple PipeWire audio outputs into a shared virtual sink with per-headphone volume controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
