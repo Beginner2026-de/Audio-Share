@@ -373,7 +373,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'Omarchy-Audio-share.zip';
+    anchor.download = 'Audio-Share.zip';
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -845,7 +845,7 @@ export default function App() {
                     Installation auf Omarchy (Beginner2026-de)
                   </h3>
                   <div className="bg-[#0b0e14] border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 space-y-1.5 overflow-x-auto">
-                    <div>omarchy plugin add https://github.com/Beginner2026-de/Omarchy-Audio-share.git --enable</div>
+                    <div>omarchy plugin add https://github.com/Beginner2026-de/Audio-Share.git --enable</div>
                     <div>omarchy restart shell</div>
                   </div>
                   <div className="flex items-center gap-3 pt-1">
@@ -855,7 +855,7 @@ export default function App() {
                         handleCopy(
                           'install-cmd',
                           [
-                            'omarchy plugin add https://github.com/Beginner2026-de/Omarchy-Audio-share.git --enable',
+                            'omarchy plugin add https://github.com/Beginner2026-de/Audio-Share.git --enable',
                             'omarchy restart shell',
                           ].join('\n')
                         )
@@ -996,7 +996,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-400 mb-2">
-                  Repo-Root · github.com/Beginner2026-de/Omarchy-Audio-share
+                  Repo-Root · github.com/Beginner2026-de/Audio-Share
                 </p>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-100">
                   Erzeugte Plugin-Dateien
@@ -1021,7 +1021,7 @@ export default function App() {
               <aside className="lg:col-span-4 bg-[#11151f] border border-slate-800 rounded-2xl p-3 space-y-1">
                 <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-400">
                   <FolderOpen className="w-4 h-4" />
-                  <span>Omarchy-Audio-share/</span>
+                  <span>Audio-Share/</span>
                 </div>
                 {PLUGIN_FILES.map((file) => (
                   <button

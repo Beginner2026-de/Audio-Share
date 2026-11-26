@@ -34,7 +34,7 @@ All dependencies are included out of the box on standard Omarchy installations:
 ### Option 2: Install via CLI (GitHub URL)
 
 ```bash
-omarchy plugin add https://github.com/Beginner2026-de/Omarchy-Audio-share.git --enable
+omarchy plugin add https://github.com/Beginner2026-de/Audio-Share.git --enable
 omarchy restart shell
 ```
 
@@ -43,7 +43,7 @@ omarchy restart shell
 1. Copy or symlink the plugin folder into your local Omarchy plugins directory:
    ```bash
    mkdir -p ~/.config/omarchy/plugins
-   ln -s ~/Documents/Github/Omarchy-Audio-share ~/.config/omarchy/plugins/io.github.beginner2026-de.audio-share
+   ln -s ~/Documents/Github/Audio-Share ~/.config/omarchy/plugins/io.github.beginner2026-de.audio-share
    ```
 2. Validate and enable the plugin:
    ```bash
