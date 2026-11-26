@@ -19,10 +19,10 @@ Item {
     property string scriptPath: Qt.resolvedUrl("scripts/audio-share.sh").toString().replace("file://", "")
 
     readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
-    readonly property color iconBaseColor: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.foreground)
+    readonly property color iconBaseColor: (Commons.Color && Commons.Color.foreground)
         ? Commons.Color.foreground
         : root.themeForeground
-    readonly property color iconAccentColor: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.accent)
+    readonly property color iconAccentColor: (Commons.Color && Commons.Color.accent)
         ? Commons.Color.accent
         : root.themeAccent
 

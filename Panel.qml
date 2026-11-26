@@ -31,23 +31,23 @@ PopupWindow {
     property string tomlError: "#f7768e"
 
     // Echte Omarchy-Theme-Farben (qs.Commons.Color + colors.toml Fallback)
-    readonly property color themeBg: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.popups && Commons.Color.popups.background)
+    readonly property color themeBg: (Commons.Color && Commons.Color.popups && Commons.Color.popups.background)
         ? Commons.Color.popups.background
-        : ((typeof Commons !== "undefined" && Commons.Color && Commons.Color.background)
+        : ((Commons.Color && Commons.Color.background)
             ? Commons.Color.background
             : popupWin.tomlBg)
 
-    readonly property color themeFg: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.popups && Commons.Color.popups.foreground)
+    readonly property color themeFg: (Commons.Color && Commons.Color.popups && Commons.Color.popups.foreground)
         ? Commons.Color.popups.foreground
-        : ((typeof Commons !== "undefined" && Commons.Color && Commons.Color.foreground)
+        : ((Commons.Color && Commons.Color.foreground)
             ? Commons.Color.foreground
             : popupWin.tomlFg)
 
-    readonly property color themeAccent: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.accent)
+    readonly property color themeAccent: (Commons.Color && Commons.Color.accent)
         ? Commons.Color.accent
         : popupWin.tomlAccent
 
-    readonly property color themeBorder: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.popups && Commons.Color.popups.border)
+    readonly property color themeBorder: (Commons.Color && Commons.Color.popups && Commons.Color.popups.border)
         ? Commons.Color.popups.border
         : Qt.rgba(themeFg.r, themeFg.g, themeFg.b, 0.16)
 
@@ -92,7 +92,7 @@ PopupWindow {
     implicitHeight: Math.min(580, contentCol.implicitHeight + 32)
 
     HyprlandFocusGrab {
-        active: popupWin.opened
+        active: popupWin.visible
         windows: [popupWin]
         onCleared: popupWin.close()
     }
@@ -432,116 +432,113 @@ PopupWindow {
             }
 
             // Liste aller Ausgabegeraete mit Auswahl + eigenem Lautstaerke-Slider
-            ScrollView {
+            ListView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(280, Math.max(120, popupWin.sinks.length * 88))
                 clip: true
+                model: popupWin.sinks
+                spacing: 8
 
-                ListView {
-                    model: popupWin.sinks
-                    spacing: 8
+                delegate: Rectangle {
+                    required property var modelData
+                    width: ListView.view.width
+                    implicitHeight: deviceCol.implicitHeight + 18
+                    radius: 10
+                    color: modelData.selected ? popupWin.themeCardSelectedBg : popupWin.themeCardBg
+                    border.width: 1
+                    border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeBorder
 
-                    delegate: Rectangle {
-                        required property var modelData
-                        width: ListView.view.width
-                        implicitHeight: deviceCol.implicitHeight + 18
-                        radius: 10
-                        color: modelData.selected ? popupWin.themeCardSelectedBg : popupWin.themeCardBg
-                        border.width: 1
-                        border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeBorder
+                    ColumnLayout {
+                        id: deviceCol
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 6
 
-                        ColumnLayout {
-                            id: deviceCol
-                            anchors.fill: parent
-                            anchors.margins: 10
-                            spacing: 6
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 8
-
-                                // Custom Theme CheckBox
-                                Rectangle {
-                                    width: 18
-                                    height: 18
-                                    radius: 5
-                                    color: modelData.selected ? popupWin.themeAccent : "transparent"
-                                    border.width: 1.5
-                                    border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
-
-                                    Text {
-                                        visible: Boolean(modelData.selected)
-                                        anchors.centerIn: parent
-                                        text: "✓"
-                                        font.pixelSize: 11
-                                        font.bold: true
-                                        color: popupWin.themeBg
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: popupWin.toggleSinkSelection(modelData.name)
-                                    }
-                                }
+                            // Custom Theme CheckBox
+                            Rectangle {
+                                width: 18
+                                height: 18
+                                radius: 5
+                                color: modelData.selected ? popupWin.themeAccent : "transparent"
+                                border.width: 1.5
+                                border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
 
                                 Text {
-                                    text: popupWin.iconGlyph(modelData.icon)
-                                    font.pixelSize: 15
-                                    color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
+                                    visible: Boolean(modelData.selected)
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                    color: popupWin.themeBg
                                 }
 
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData.description
-                                    elide: Text.ElideRight
-                                    font.pixelSize: 13
-                                    font.weight: modelData.selected ? Font.DemiBold : Font.Normal
-                                    color: popupWin.themeFg
-                                }
-
-                                Text {
-                                    text: modelData.mute ? popupWin.t("mute") : (modelData.volume + " %")
-                                    font.pixelSize: 12
-                                    font.family: "JetBrains Mono"
-                                    color: popupWin.themeMutedFg
-                                }
-
-                                Rectangle {
-                                    width: 28
-                                    height: 26
-                                    radius: 6
-                                    color: devMuteMouse.containsMouse ? popupWin.themeTrackBg : "transparent"
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData.mute ? "󰖁" : "󰕾"
-                                        font.pixelSize: 14
-                                        color: modelData.mute ? popupWin.themeError : popupWin.themeFg
-                                    }
-
-                                    MouseArea {
-                                        id: devMuteMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: popupWin.runAction(["toggle-mute", modelData.name])
-                                    }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: popupWin.toggleSinkSelection(modelData.name)
                                 }
                             }
 
-                            ThemeSlider {
+                            Text {
+                                text: popupWin.iconGlyph(modelData.icon)
+                                font.pixelSize: 15
+                                color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
+                            }
+
+                            Text {
                                 Layout.fillWidth: true
-                                value: modelData.volume
-                                enabledControl: !modelData.mute
-                                onValueChangedByUser: (val) => {
-                                    popupWin.sinks = popupWin.sinks.map(s =>
-                                        s.name === modelData.name ? Object.assign({}, s, { volume: val }) : s
-                                    )
+                                text: modelData.description
+                                elide: Text.ElideRight
+                                font.pixelSize: 13
+                                font.weight: modelData.selected ? Font.DemiBold : Font.Normal
+                                color: popupWin.themeFg
+                            }
+
+                            Text {
+                                text: modelData.mute ? popupWin.t("mute") : (modelData.volume + " %")
+                                font.pixelSize: 12
+                                font.family: "JetBrains Mono"
+                                color: popupWin.themeMutedFg
+                            }
+
+                            Rectangle {
+                                width: 28
+                                height: 26
+                                radius: 6
+                                color: devMuteMouse.containsMouse ? popupWin.themeTrackBg : "transparent"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.mute ? "󰖁" : "󰕾"
+                                    font.pixelSize: 14
+                                    color: modelData.mute ? popupWin.themeError : popupWin.themeFg
                                 }
-                                onValueCommitted: (val) => {
-                                    popupWin.runAction(["set-volume", modelData.name, String(val)])
+
+                                MouseArea {
+                                    id: devMuteMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: popupWin.runAction(["toggle-mute", modelData.name])
                                 }
+                            }
+                        }
+
+                        ThemeSlider {
+                            Layout.fillWidth: true
+                            value: modelData.volume
+                            enabledControl: !modelData.mute
+                            onValueChangedByUser: (val) => {
+                                popupWin.sinks = popupWin.sinks.map(s =>
+                                    s.name === modelData.name ? Object.assign({}, s, { volume: val }) : s
+                                )
+                            }
+                            onValueCommitted: (val) => {
+                                popupWin.runAction(["set-volume", modelData.name, String(val)])
                             }
                         }
                     }
