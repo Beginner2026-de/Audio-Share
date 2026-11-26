@@ -44,7 +44,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Ausgangsmedien & individuelle Lautstärke',
     mute: 'Stumm',
     hintMinTwo: 'Wähle mindestens 2 Ausgabegeräte aus, um den gemeinsamen virtuellen Ausgang zu aktivieren.',
-    refreshTitle: 'Ausgänge neu einlesen',
+    refreshTitle: 'Audio-Ausgänge neu einlesen (z. B. nach Anschließen von Bluetooth- oder USB-Kopfhörern)',
   },
   en: {
     widgetTitle: 'Audio Share',
@@ -54,7 +54,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Output devices & individual volume',
     mute: 'Muted',
     hintMinTwo: 'Select at least 2 output devices to enable the shared virtual output.',
-    refreshTitle: 'Refresh outputs',
+    refreshTitle: 'Rescan audio outputs (e.g. after connecting Bluetooth or USB headphones)',
   },
   fr: {
     widgetTitle: 'Audio Share',
@@ -64,7 +64,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Périphériques de sortie & volume individuel',
     mute: 'Muet',
     hintMinTwo: 'Sélectionnez au moins 2 sorties pour activer la sortie virtuelle partagée.',
-    refreshTitle: 'Actualiser les sorties',
+    refreshTitle: 'Actualiser les sorties audio (ex. après connexion d’un casque Bluetooth ou USB)',
   },
   es: {
     widgetTitle: 'Audio Share',
@@ -74,7 +74,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Dispositivos de salida y volumen individual',
     mute: 'Silencio',
     hintMinTwo: 'Selecciona al menos 2 dispositivos para activar la salida virtual compartida.',
-    refreshTitle: 'Actualizar salidas',
+    refreshTitle: 'Actualizar salidas de audio (ej. tras conectar auriculares Bluetooth o USB)',
   },
 };
 
@@ -256,6 +256,7 @@ export default function App() {
   const [newDeviceLabel, setNewDeviceLabel] = useState<string>('');
   const [selectedFileId, setSelectedFileId] = useState<string>(PLUGIN_FILES[0].id);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const theme = useMemo(
     () => OMARCHY_THEMES.find((t) => t.id === themeId) ?? OMARCHY_THEMES[0],
@@ -290,7 +291,11 @@ export default function App() {
   };
 
   const handleToggleDevice = (sinkName: string) => {
-    const next = devices.map((d) => (d.name === sinkName ? { ...d, selected: !d.selected } : d));
+    const toggled = devices.map((d) => (d.name === sinkName ? { ...d, selected: !d.selected } : d));
+    const next = [
+      ...toggled.filter((d) => d.selected),
+      ...toggled.filter((d) => !d.selected),
+    ];
     setDevices(next);
     const nextSelected = next.filter((d) => d.selected);
     if (virtualActive) {
@@ -304,6 +309,12 @@ export default function App() {
         pushCommand('pactl unload-module <omarchy_audio_share_id>');
       }
     }
+  };
+
+  const handleRefreshOutputs = () => {
+    setRefreshing(true);
+    pushCommand(`pactl -f json list sinks (${devices.length} Ausgänge aktualisiert)`);
+    window.setTimeout(() => setRefreshing(false), 450);
   };
 
   const handleDeviceVolume = (sinkName: string, vol: number) => {
@@ -498,7 +509,12 @@ export default function App() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Linke Spalte: Omarchy Top Bar + Quickshell Panel.qml Simulator */}
-              <div className="lg:col-span-7 bg-[#11151f] border border-slate-800 rounded-2xl p-5">
+              <div
+                className="lg:col-span-7 bg-[#11151f] border border-slate-800 rounded-2xl p-5"
+                onClick={() => {
+                  if (panelOpen) setPanelOpen(false);
+                }}
+              >
                 {/* Simulierte Omarchy Top Bar */}
                 <div
                   className="rounded-xl px-4 py-2 flex items-center justify-between border transition-colors"
@@ -517,7 +533,10 @@ export default function App() {
                     {/* BarWidget.qml Vorschau: nur Doppel-Kopfhörer-Icon ohne Text und ohne Hintergrund-Box */}
                     <button
                       type="button"
-                      onClick={() => setPanelOpen((v) => !v)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPanelOpen((v) => !v);
+                      }}
                       title={
                         virtualActive
                           ? simT.subtitleActive(selectedDevices.length)
@@ -544,6 +563,7 @@ export default function App() {
                 <div className="mt-4 flex justify-end">
                   {panelOpen ? (
                     <div
+                      onClick={(e) => e.stopPropagation()}
                       className="w-full max-w-[460px] rounded-[14px] p-4 border transition-colors"
                       style={{
                         backgroundColor: theme.surface,
@@ -572,16 +592,13 @@ export default function App() {
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             type="button"
-                            onClick={() =>
-                              pushCommand(
-                                `${selectedDevices.length} Ausgänge über pactl -f json list sinks aktualisiert`
-                              )
-                            }
+                            onClick={handleRefreshOutputs}
                             title={simT.refreshTitle}
+                            aria-label={simT.refreshTitle}
                             className="p-2 rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
-                            style={{ color: theme.onSurfaceVariant }}
+                            style={{ color: refreshing ? theme.primary : theme.onSurfaceVariant }}
                           >
-                            <RefreshCw className="w-4 h-4" />
+                            <RefreshCw className={`w-4 h-4 transition-transform duration-300 ${refreshing ? 'rotate-180' : ''}`} />
                           </button>
 
                           <button

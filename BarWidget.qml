@@ -18,7 +18,7 @@ Item {
     property string themeAccent: "#7aa2f7"
     property string scriptPath: Qt.resolvedUrl("scripts/audio-share.sh").toString().replace("file://", "")
 
-    readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+    readonly property bool opened: panelLoader.item ? panelLoader.item.visible === true : false
     readonly property color iconBaseColor: (Commons.Color && Commons.Color.foreground)
         ? Commons.Color.foreground
         : root.themeForeground
@@ -164,7 +164,9 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
-                root.refreshStatus()
+                if (!root.opened) {
+                    root.refreshStatus()
+                }
                 root.toggle()
             }
         }

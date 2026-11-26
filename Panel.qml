@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 import qs.Commons as Commons
 import "i18n.js" as I18n
 
@@ -12,8 +11,9 @@ PopupWindow {
 
     property var anchorItem: null
     property var hostWidget: null
-    property bool opened: false
+    readonly property bool opened: popupWin.visible
     property double lastClosedAt: 0
+    property bool scrollTopPending: false
 
     property string localeName: Qt.locale().name
     property bool virtualActive: false
@@ -61,22 +61,33 @@ PopupWindow {
         return I18n.tr(popupWin.localeName, key, vars)
     }
 
+    function sortSinks(list) {
+        return list.slice().sort((a, b) => {
+            const selA = Boolean(a.selected)
+            const selB = Boolean(b.selected)
+            if (selA === selB) return 0
+            return selA ? -1 : 1
+        })
+    }
+
     function open() {
-        popupWin.opened = true
+        if (!popupWin.anchorItem) return
         popupWin.anchor.updateAnchor()
+        popupWin.visible = true
+        popupWin.scrollTopPending = true
         popupWin.runAction(["status"])
     }
 
     function close() {
-        if (!popupWin.opened) return
+        if (!popupWin.visible) return
         popupWin.lastClosedAt = Date.now()
-        popupWin.opened = false
+        popupWin.visible = false
     }
 
     function toggle() {
-        if (popupWin.opened) {
+        if (popupWin.visible) {
             popupWin.close()
-        } else if (Date.now() - popupWin.lastClosedAt > 220) {
+        } else if (Date.now() - popupWin.lastClosedAt > 250) {
             popupWin.open()
         }
     }
@@ -86,22 +97,35 @@ PopupWindow {
     anchor.gravity: Edges.Bottom
     anchor.margins.top: 6
 
-    visible: popupWin.opened && popupWin.anchorItem !== null
+    grabFocus: true
+    visible: false
     color: "transparent"
     implicitWidth: 420
     implicitHeight: Math.min(580, contentCol.implicitHeight + 32)
 
-    HyprlandFocusGrab {
-        active: popupWin.visible
-        windows: [popupWin]
-        onCleared: popupWin.close()
+    onVisibleChanged: {
+        if (!visible) {
+            popupWin.lastClosedAt = Date.now()
+        }
     }
 
-    function runAction(args) {
-        if (actionProc.running) return
+    function runAction(args, forceRestart) {
+        if (actionProc.running) {
+            if (forceRestart) {
+                actionProc.running = false
+            } else {
+                return
+            }
+        }
         popupWin.busy = true
         actionProc.command = ["bash", popupWin.scriptPath].concat(args)
         actionProc.running = true
+    }
+
+    function refreshSinks() {
+        refreshAnim.restart()
+        popupWin.scrollTopPending = true
+        popupWin.runAction(["status"], true)
     }
 
     function applyState(rawJson) {
@@ -121,8 +145,15 @@ PopupWindow {
                 else if (data.theme.color4) popupWin.tomlAccent = data.theme.color4
                 if (data.theme.color1) popupWin.tomlError = data.theme.color1
             }
-            popupWin.sinks = Array.isArray(data.sinks) ? data.sinks : []
+            const rawSinks = Array.isArray(data.sinks) ? data.sinks : []
+            popupWin.sinks = popupWin.sortSinks(rawSinks)
             popupWin.statusMessage = ""
+            if (popupWin.scrollTopPending) {
+                popupWin.scrollTopPending = false
+                Qt.callLater(() => {
+                    if (sinksList) sinksList.positionViewAtBeginning()
+                })
+            }
             if (popupWin.hostWidget && popupWin.hostWidget.refreshStatus) {
                 popupWin.hostWidget.refreshStatus()
             }
@@ -136,19 +167,24 @@ PopupWindow {
     }
 
     function toggleSinkSelection(sinkName) {
-        const updated = popupWin.sinks.map(s => {
+        const updated = popupWin.sortSinks(popupWin.sinks.map(s => {
             if (s.name === sinkName) {
                 return Object.assign({}, s, { selected: !s.selected })
             }
             return s
-        })
+        }))
         popupWin.sinks = updated
+        Qt.callLater(() => {
+            if (sinksList) sinksList.positionViewAtBeginning()
+        })
 
         const chosen = updated.filter(s => s.selected).map(s => s.name)
         if (popupWin.virtualActive) {
             if (chosen.length >= 2) {
+                popupWin.scrollTopPending = true
                 popupWin.runAction(["enable", chosen.join(",")])
             } else {
+                popupWin.scrollTopPending = true
                 popupWin.runAction(["disable"])
             }
         }
@@ -201,6 +237,7 @@ PopupWindow {
         property int value: 100
         property int maximum: 150
         property bool enabledControl: true
+        readonly property bool dragging: sliderMouse.pressed
         signal valueChangedByUser(int newValue)
         signal valueCommitted(int newValue)
 
@@ -237,8 +274,10 @@ PopupWindow {
         }
 
         MouseArea {
+            id: sliderMouse
             anchors.fill: parent
             enabled: sliderRoot.enabledControl
+            preventStealing: true
             cursorShape: Qt.PointingHandCursor
             function updateFromX(mouseX) {
                 var ratio = Math.max(0, Math.min(1, mouseX / Math.max(1, width)))
@@ -264,7 +303,7 @@ PopupWindow {
         color: popupWin.themeBg
         border.width: 1
         border.color: popupWin.themeBorder
-        focus: popupWin.opened
+        focus: popupWin.visible
 
         Keys.onEscapePressed: popupWin.close()
 
@@ -301,16 +340,46 @@ PopupWindow {
 
                 // Aktualisieren-Button
                 Rectangle {
+                    id: refreshBtn
                     width: 28
                     height: 28
                     radius: 7
                     color: refreshMouse.containsMouse ? popupWin.themeCardBg : "transparent"
 
                     Text {
+                        id: refreshIcon
                         anchors.centerIn: parent
                         text: "↻"
                         font.pixelSize: 15
-                        color: popupWin.themeMutedFg
+                        color: (refreshMouse.containsMouse || popupWin.busy)
+                            ? popupWin.themeAccent
+                            : popupWin.themeMutedFg
+
+                        NumberAnimation on rotation {
+                            id: refreshAnim
+                            from: 0
+                            to: 360
+                            duration: 420
+                            easing.type: Easing.OutCubic
+                            running: false
+                        }
+                    }
+
+                    ToolTip {
+                        visible: refreshMouse.containsMouse
+                        delay: 250
+                        text: popupWin.t("refreshTooltip")
+                        contentItem: Text {
+                            text: parent.text
+                            font.pixelSize: 11
+                            color: popupWin.themeFg
+                        }
+                        background: Rectangle {
+                            color: popupWin.themeBg
+                            border.width: 1
+                            border.color: popupWin.themeBorder
+                            radius: 6
+                        }
                     }
 
                     MouseArea {
@@ -318,7 +387,7 @@ PopupWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: popupWin.runAction(["status"])
+                        onClicked: popupWin.refreshSinks()
                     }
                 }
 
@@ -433,14 +502,27 @@ PopupWindow {
 
             // Liste aller Ausgabegeraete mit Auswahl + eigenem Lautstaerke-Slider
             ListView {
+                id: sinksList
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(280, Math.max(120, popupWin.sinks.length * 88))
+                Layout.preferredHeight: sinksList.contentHeight > 0
+                    ? Math.min(300, sinksList.contentHeight)
+                    : Math.min(300, Math.max(84, popupWin.sinks.length * 84))
                 clip: true
+                boundsBehavior: Flickable.StopAtBounds
                 model: popupWin.sinks
                 spacing: 8
 
                 delegate: Rectangle {
+                    id: deviceCard
                     required property var modelData
+                    property int liveVolume: Number(modelData.volume ?? 100)
+
+                    onModelDataChanged: {
+                        if (!deviceSlider.dragging) {
+                            deviceCard.liveVolume = Number(modelData.volume ?? 100)
+                        }
+                    }
+
                     width: ListView.view.width
                     implicitHeight: deviceCol.implicitHeight + 18
                     radius: 10
@@ -459,21 +541,27 @@ PopupWindow {
                             spacing: 8
 
                             // Custom Theme CheckBox
-                            Rectangle {
-                                width: 18
-                                height: 18
-                                radius: 5
-                                color: modelData.selected ? popupWin.themeAccent : "transparent"
-                                border.width: 1.5
-                                border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
+                            Item {
+                                width: 22
+                                height: 22
 
-                                Text {
-                                    visible: Boolean(modelData.selected)
+                                Rectangle {
+                                    width: 18
+                                    height: 18
                                     anchors.centerIn: parent
-                                    text: "✓"
-                                    font.pixelSize: 11
-                                    font.bold: true
-                                    color: popupWin.themeBg
+                                    radius: 5
+                                    color: modelData.selected ? popupWin.themeAccent : "transparent"
+                                    border.width: 1.5
+                                    border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
+
+                                    Text {
+                                        visible: Boolean(modelData.selected)
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        font.pixelSize: 11
+                                        font.bold: true
+                                        color: popupWin.themeBg
+                                    }
                                 }
 
                                 MouseArea {
@@ -499,7 +587,7 @@ PopupWindow {
                             }
 
                             Text {
-                                text: modelData.mute ? popupWin.t("mute") : (modelData.volume + " %")
+                                text: modelData.mute ? popupWin.t("mute") : (deviceCard.liveVolume + " %")
                                 font.pixelSize: 12
                                 font.family: "JetBrains Mono"
                                 color: popupWin.themeMutedFg
@@ -529,13 +617,12 @@ PopupWindow {
                         }
 
                         ThemeSlider {
+                            id: deviceSlider
                             Layout.fillWidth: true
-                            value: modelData.volume
+                            value: deviceCard.liveVolume
                             enabledControl: !modelData.mute
                             onValueChangedByUser: (val) => {
-                                popupWin.sinks = popupWin.sinks.map(s =>
-                                    s.name === modelData.name ? Object.assign({}, s, { volume: val }) : s
-                                )
+                                deviceCard.liveVolume = val
                             }
                             onValueCommitted: (val) => {
                                 popupWin.runAction(["set-volume", modelData.name, String(val)])

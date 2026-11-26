@@ -85,7 +85,7 @@ for mod in modules_raw:
     if mod.get("name") == "module-combine-sink":
         arg = str(mod.get("argument", ""))
         if f"sink_name={virtual_name}" in arg:
-            module_id = mod.get("index")
+            module_id = mod.get("index") if mod.get("index") is not None else mod.get("id")
             for part in arg.split():
                 if part.startswith("slaves="):
                     active_slaves = [s.strip() for s in part[7:].split(",") if s.strip()]
@@ -139,6 +139,8 @@ for s in sinks_raw:
         "isDefault": name == default_sink
     })
 
+physical_sinks.sort(key=lambda x: 0 if x["selected"] else 1)
+
 print(json.dumps({
     "virtualActive": virtual_active,
     "moduleId": module_id,
@@ -155,13 +157,38 @@ PY
 unload_existing() {
   python3 - "$VIRTUAL_SINK_NAME" <<'PY' | while read -r mod_id; do
 import json, subprocess, sys
+
 target = sys.argv[1]
-mods = json.loads(subprocess.check_output(["pactl", "-f", "json", "list", "modules"], text=True))
-for m in mods:
-    if m.get("name") == "module-combine-sink" and f"sink_name={target}" in str(m.get("argument", "")):
-        print(m["index"])
+found_ids = []
+
+try:
+    raw = subprocess.check_output(["pactl", "-f", "json", "list", "modules"], text=True, stderr=subprocess.DEVNULL)
+    mods = json.loads(raw)
+    for m in mods:
+        if m.get("name") == "module-combine-sink" and f"sink_name={target}" in str(m.get("argument", "")):
+            mod_id = m.get("index") if m.get("index") is not None else m.get("id")
+            if mod_id is not None:
+                found_ids.append(str(mod_id))
+except Exception:
+    pass
+
+if not found_ids:
+    try:
+        short_raw = subprocess.check_output(["pactl", "list", "short", "modules"], text=True, stderr=subprocess.DEVNULL)
+        for line in short_raw.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 2 and parts[1].strip() == "module-combine-sink":
+                args = parts[2] if len(parts) >= 3 else ""
+                if f"sink_name={target}" in args:
+                    found_ids.append(parts[0].strip())
+    except Exception:
+        pass
+
+for mid in found_ids:
+    if mid:
+        print(mid)
 PY
-    pactl unload-module "$mod_id" >/dev/null 2>&1 || true
+    [ -n "$mod_id" ] && pactl unload-module "$mod_id" >/dev/null 2>&1 || true
   done
 }
 
@@ -203,7 +230,7 @@ cmd_disable() {
   if [ -f "$PREV_SINK_FILE" ]; then
     local prev
     prev="$(cat "$PREV_SINK_FILE")"
-    if [ -n "$prev" ] && pactl list short sinks | awk '{print $2}' | grep -Fxq "$prev"; then
+    if [ -n "$prev" ] && (pactl list short sinks 2>/dev/null || true) | awk '{print $2}' | grep -Fxq "$prev"; then
       pactl set-default-sink "$prev" || true
       move_streams_to "$prev"
     fi
