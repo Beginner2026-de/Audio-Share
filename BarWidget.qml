@@ -8,8 +8,7 @@ import "i18n.js" as I18n
 Item {
     id: root
 
-    property var pluginApi: null
-
+    property var bar: null
     property string localeName: Qt.locale().name
     property bool virtualActive: false
     property int selectedCount: 0
@@ -17,8 +16,28 @@ Item {
     property bool masterMute: false
     property string scriptPath: Qt.resolvedUrl("scripts/audio-share.sh").toString().replace("file://", "")
 
+    readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+
     function t(key, vars) {
         return I18n.tr(root.localeName, key, vars)
+    }
+
+    function open() {
+        if (panelLoader.item) panelLoader.item.open()
+    }
+
+    function close() {
+        if (panelLoader.item) panelLoader.item.close()
+    }
+
+    function toggle() {
+        if (panelLoader.item) panelLoader.item.toggle()
+    }
+
+    function injectPanel() {
+        if (!panelLoader.item) return
+        panelLoader.item.anchorItem = buttonRect
+        panelLoader.item.hostWidget = root
     }
 
     implicitWidth: 34
@@ -31,7 +50,10 @@ Item {
         }
     }
 
-    Component.onCompleted: refreshStatus()
+    Component.onCompleted: {
+        refreshStatus()
+        injectPanel()
+    }
 
     Timer {
         interval: 3000
@@ -58,13 +80,24 @@ Item {
         }
     }
 
+    Loader {
+        id: panelLoader
+        active: true
+        source: Qt.resolvedUrl("Panel.qml")
+        onLoaded: {
+            root.injectPanel()
+            Qt.callLater(root.injectPanel)
+        }
+    }
+
     Rectangle {
+        id: buttonRect
         anchors.fill: parent
         radius: 8
-        color: mouseArea.containsMouse
+        color: mouseArea.containsMouse || root.opened
             ? Commons.Color.surfaceVariant
             : (root.virtualActive ? Commons.Color.primaryContainer : "transparent")
-        border.width: root.virtualActive ? 1 : 0
+        border.width: root.virtualActive || root.opened ? 1 : 0
         border.color: Commons.Color.primary
 
         Canvas {
@@ -73,7 +106,9 @@ Item {
             height: 20
             anchors.centerIn: parent
 
-            property color iconColor: root.virtualActive ? Commons.Color.primary : Commons.Color.onSurface
+            property color iconColor: root.virtualActive || root.opened
+                ? Commons.Color.primary
+                : Commons.Color.onSurface
 
             onIconColorChanged: requestPaint()
             Component.onCompleted: requestPaint()
@@ -110,7 +145,7 @@ Item {
             }
         }
 
-        ToolTip.visible: mouseArea.containsMouse
+        ToolTip.visible: mouseArea.containsMouse && !root.opened
         ToolTip.delay: 450
         ToolTip.text: root.virtualActive
             ? root.t("widgetSubtitleActive", { count: root.selectedCount })
@@ -123,11 +158,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
                 root.refreshStatus()
-                if (root.pluginApi && root.pluginApi.togglePanel) {
-                    root.pluginApi.togglePanel()
-                } else if (root.pluginApi && root.pluginApi.openPanel) {
-                    root.pluginApi.openPanel()
-                }
+                root.toggle()
             }
         }
     }

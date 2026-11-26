@@ -6,10 +6,9 @@
   "author": "Beginner2026-de",
   "license": "MIT",
   "description": "Kombiniert zwei oder mehr Audio-Ausgänge über PipeWire zu einem virtuellen Ausgang mit separater Lautstärkeregelung pro Kopfhörer.",
-  "kinds": ["bar-widget", "panel"],
+  "kinds": ["bar-widget"],
   "entryPoints": {
-    "barWidget": "BarWidget.qml",
-    "panel": "Panel.qml"
+    "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Audio Share",
