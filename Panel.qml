@@ -1,19 +1,23 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
+import QtQuick.Window
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.Commons as Commons
 import "i18n.js" as I18n
 
-PopupWindow {
+PanelWindow {
     id: popupWin
 
     property var anchorItem: null
     property var hostWidget: null
-    readonly property bool opened: popupWin.visible
+    property bool opened: false
     property double lastClosedAt: 0
     property bool scrollTopPending: false
+
+    property real cardX: Math.max(12, popupWin.width - 432)
+    property real cardY: 44
 
     property string localeName: Qt.locale().name
     property bool virtualActive: false
@@ -70,43 +74,64 @@ PopupWindow {
         })
     }
 
+    function updatePosition() {
+        if (!popupWin.anchorItem) return
+        try {
+            const win = popupWin.anchorItem.Window.window
+            if (win && win.screen) {
+                popupWin.screen = win.screen
+            }
+            const pos = popupWin.anchorItem.mapToItem(null, 0, 0)
+            const barH = (win && win.height > 0) ? win.height : 38
+            const maxW = popupWin.width > 0
+                ? popupWin.width
+                : ((win && win.width > 0) ? win.width : 1920)
+            const desiredX = pos.x + (popupWin.anchorItem.width / 2) - (cardRoot.width / 2)
+            popupWin.cardX = Math.max(12, Math.min(maxW - cardRoot.width - 12, desiredX))
+            popupWin.cardY = barH + 6
+        } catch (e) {
+            popupWin.cardX = Math.max(12, (popupWin.width > 0 ? popupWin.width : 1920) - cardRoot.width - 12)
+            popupWin.cardY = 44
+        }
+    }
+
     function open() {
         if (!popupWin.anchorItem) return
-        popupWin.anchor.updateAnchor()
-        popupWin.visible = true
+        popupWin.updatePosition()
+        popupWin.opened = true
         popupWin.scrollTopPending = true
         popupWin.runAction(["status"])
     }
 
     function close() {
-        if (!popupWin.visible) return
+        if (!popupWin.opened) return
         popupWin.lastClosedAt = Date.now()
-        popupWin.visible = false
+        popupWin.opened = false
     }
 
     function toggle() {
-        if (popupWin.visible) {
+        if (popupWin.opened) {
             popupWin.close()
         } else if (Date.now() - popupWin.lastClosedAt > 250) {
             popupWin.open()
         }
     }
 
-    anchor.item: popupWin.anchorItem
-    anchor.edges: Edges.Bottom
-    anchor.gravity: Edges.Bottom
-    anchor.margins.top: 6
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
 
-    grabFocus: true
-    visible: false
+    exclusionMode: ExclusionMode.Ignore
+    focusable: true
+    WlrLayershell.layer: WlrLayer.Overlay
     color: "transparent"
-    implicitWidth: 420
-    implicitHeight: Math.min(580, contentCol.implicitHeight + 32)
+    visible: popupWin.opened && popupWin.anchorItem !== null
 
-    onVisibleChanged: {
-        if (!visible) {
-            popupWin.lastClosedAt = Date.now()
-        }
+    onWidthChanged: {
+        if (popupWin.opened) popupWin.updatePosition()
     }
 
     function runAction(args, forceRestart) {
@@ -231,6 +256,13 @@ PopupWindow {
         }
     }
 
+    // Vollbild-Klickfaenger hinter dem Popup: schliesst bei Klick ausserhalb sofort
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onPressed: popupWin.close()
+    }
+
     // Wiederverwendbarer Slider im System-Theme
     component ThemeSlider: Item {
         id: sliderRoot
@@ -298,18 +330,32 @@ PopupWindow {
 
     Rectangle {
         id: cardRoot
-        anchors.fill: parent
+        x: popupWin.cardX
+        y: popupWin.cardY
+        width: 420
+        height: Math.min(580, contentCol.implicitHeight + 32)
         radius: 14
         color: popupWin.themeBg
         border.width: 1
         border.color: popupWin.themeBorder
-        focus: popupWin.visible
+        focus: popupWin.opened
 
         Keys.onEscapePressed: popupWin.close()
 
+        // Verhindert, dass Klicks auf leere Flaechen im Popup zum Hintergrund durchfallen
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onPressed: (mouse) => {
+                mouse.accepted = true
+            }
+        }
+
         ColumnLayout {
             id: contentCol
-            anchors.fill: parent
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
             anchors.margins: 16
             spacing: 12
 
@@ -354,42 +400,15 @@ PopupWindow {
                         color: (refreshMouse.containsMouse || popupWin.busy)
                             ? popupWin.themeAccent
                             : popupWin.themeMutedFg
-
-                        NumberAnimation on rotation {
-                            id: refreshAnim
-                            from: 0
-                            to: 360
-                            duration: 420
-                            easing.type: Easing.OutCubic
-                            running: false
-                        }
                     }
 
-                    ToolTip {
-                        visible: refreshMouse.containsMouse
-                        delay: 250
-                        padding: 8
-                        text: popupWin.t("refreshTooltip")
-                        contentItem: Text {
-                            id: refreshTipText
-                            text: parent.text
-                            font.pixelSize: 11
-                            color: popupWin.themeFg
-                            wrapMode: Text.WordWrap
-                            implicitWidth: Math.min(240, refreshTipMetrics.width)
-
-                            TextMetrics {
-                                id: refreshTipMetrics
-                                font: refreshTipText.font
-                                text: refreshTipText.text
-                            }
-                        }
-                        background: Rectangle {
-                            color: popupWin.themeBg
-                            border.width: 1
-                            border.color: popupWin.themeBorder
-                            radius: 6
-                        }
+                    RotationAnimation {
+                        id: refreshAnim
+                        target: refreshIcon
+                        from: 0
+                        to: 360
+                        duration: 420
+                        easing.type: Easing.OutCubic
                     }
 
                     MouseArea {
@@ -652,6 +671,34 @@ PopupWindow {
                 text: popupWin.statusMessage.length > 0
                     ? popupWin.statusMessage
                     : popupWin.t("hintMinTwo")
+            }
+        }
+
+        // Eigener Hover-Tooltip fuer den Aktualisieren-Button im Omarchy-Theme
+        Rectangle {
+            id: refreshTooltipBox
+            visible: refreshMouse.containsMouse
+            z: 100
+            width: 260
+            height: refreshTipLabel.implicitHeight + 14
+            anchors.top: contentCol.top
+            anchors.topMargin: 34
+            anchors.right: contentCol.right
+            anchors.rightMargin: 44
+            radius: 8
+            color: popupWin.themeBg
+            border.width: 1
+            border.color: popupWin.themeBorder
+
+            Text {
+                id: refreshTipLabel
+                x: 9
+                y: 7
+                width: parent.width - 18
+                text: popupWin.t("refreshTooltip")
+                font.pixelSize: 11
+                color: popupWin.themeFg
+                wrapMode: Text.WordWrap
             }
         }
     }
