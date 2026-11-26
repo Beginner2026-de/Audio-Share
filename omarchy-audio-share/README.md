@@ -1,37 +1,93 @@
-# Omarchy Audio Share Plugin (`local.audio-share`)
+# Audio Share for Omarchy
 
-Dieses Omarchy-Quickshell-Plugin bündelt zwei oder mehr PipeWire-Audioausgänge (z. B. Bluetooth-Kopfhörer + USB-DAC oder zwei Kopfhörer gleichzeitig) zu einem **virtuellen gemeinsamen Ausgang** (`omarchy_audio_share`) und erlaubt die **individuelle Lautstärkeregelung und Stummschaltung pro Gerät**.
+Combine two or more PipeWire audio outputs (e.g., Bluetooth headphones, USB DACs, 3.5 mm jack, or HDMI speakers) into a single virtual multi-output sink so multiple people can listen simultaneously while keeping **independent volume and mute controls for every device**.
 
-## So funktioniert die Audio-Steuerung unter Omarchy
+## Features
 
-- **Audio-Server:** Omarchy nutzt standardmäßig **PipeWire** mit **WirePlumber** sowie `pipewire-pulse` (`pactl`) als kompatible Steuerungsschicht.
-- **Virtueller Kombi-Ausgang:** Über `pactl load-module module-combine-sink` legt das Backend-Skript (`scripts/audio-share.sh`) dynamisch einen virtuellen Sink (`omarchy_audio_share`) an, setzt ihn als Standard-Ausgang (`pactl set-default-sink`) und verschiebt laufende Audio-Streams (`pactl move-sink-input`) automatisch dorthin – ganz ohne Neustart von PipeWire.
-- **Einzel-Lautstärke pro Kopfhörer:** Da der Combine-Sink den Ton an jeden ausgewählten physischen Sink weiterleitet, behält jedes Ausgabegerät in PipeWire seine eigene Lautstärke (`pactl set-sink-volume <sink> <prozent>%`). So kannst du Kopfhörer A und Kopfhörer B unabhängig voneinander regeln.
+- **Virtual Multi-Output Sink:** Dynamically creates `omarchy_audio_share` via PipeWire's `module-combine-sink` without restarting PipeWire and automatically moves active audio streams to it.
+- **Per-Headphone Volume & Mute:** Adjust volume (`0–150 %`) and mute state individually for each output device alongside a shared master volume control.
+- **Compact Dual-Headphone Bar Icon:** Renders two overlapping headphones directly in the Omarchy top bar without taking up text space.
+- **Automatic Theme Sync:** Uses `qs.Commons` (`Commons.Color.*`) so the bar widget and popup match any active Omarchy theme (`Super + Ctrl + T`).
+- **Automatic System Language:** Detects the active system locale (`Qt.locale().name`) and adapts automatically between English, German, French, and Spanish (fallback: English).
+- **Zero-Setup Scripting:** Helper commands run directly through `bash` via `Quickshell.Io.Process` — no manual `chmod +x` required after installing via Git.
 
-## Installation auf Omarchy
+## Requirements
 
-### Per GitHub-URL (empfohlen)
+All dependencies are included out of the box on standard Omarchy installations:
+
+- Omarchy (Quattro / Quickshell)
+- PipeWire with `pipewire-pulse` (`pactl`)
+- `python3`
+- `bash`
+
+## Installation
+
+### Option 1: Omarchy Plugin Marketplace (`plugins.omarchy.org`)
+
+1. Open the Omarchy Plugin Store via `Super + Space` (or browse [plugins.omarchy.org](https://plugins.omarchy.org)).
+2. Search for **Audio Share** and install it.
+3. Restart the shell if the widget does not appear immediately:
+   ```bash
+   omarchy restart shell
+   ```
+
+### Option 2: Install via CLI (GitHub URL)
+
 ```bash
-omarchy plugin add https://github.com/<dein-username>/Omarchy-Audio-share.git --enable
+omarchy plugin add https://github.com/Beginner2026-de/Omarchy-Audio-share.git --enable
+omarchy restart shell
 ```
 
-### Lokal aus einem Ordner
-1. Plugin-Ordner nach `~/.config/omarchy/plugins/local.audio-share/` kopieren oder verlinken.
-2. Plugin validieren und aktivieren:
+### Option 3: Local / Manual Installation
+
+1. Copy or symlink the plugin folder into your local Omarchy plugins directory:
    ```bash
-   omarchy plugin validate ~/.config/omarchy/plugins/local.audio-share
-   omarchy plugin enable local.audio-share
-   omarchy-restart-shell
+   mkdir -p ~/.config/omarchy/plugins
+   ln -s ~/Documents/Github/Omarchy-Audio-share ~/.config/omarchy/plugins/io.github.beginner2026-de.audio-share
    ```
-3. In der oberen Omarchy-Leiste auf **Audio Share** klicken, mindestens zwei Ausgabegeräte anhaken, den Schalter aktivieren und die Lautstärke pro Gerät individuell anpassen.
+2. Validate and enable the plugin:
+   ```bash
+   omarchy plugin validate ~/.config/omarchy/plugins/io.github.beginner2026-de.audio-share
+   omarchy plugin enable io.github.beginner2026-de.audio-share
+   omarchy restart shell
+   ```
 
-## System-Theme & Systemsprache
+### Placing the Widget on Your Bar
 
-- **System-Theme:** Das Plugin nutzt `qs.Commons as Commons` (`Commons.Color.*`) ohne feste Farbwerte. Sobald du das Omarchy-Theme wechselst (`Super + Ctrl + T` oder `omarchy theme set ...`), übernehmen Widget und Popup automatisch die neuen Farben.
-- **Systemsprache:** `i18n.js` liest automatisch die aktuelle System-Locale (`Qt.locale().name`, z. B. `de_DE`, `en_US`, `fr_FR`, `es_ES`; Fallback: Englisch).
+If you use a customized bar layout in `~/.config/omarchy/shell.json`, place the widget via **Settings → Appearance → Menu Bar** or via CLI:
 
-## Plugin aktualisieren (wenn du etwas Neues hinzufügst)
+```bash
+omarchy bar move io.github.beginner2026-de.audio-share --section right --index 0
+omarchy restart shell
+```
 
-- **Lokal bearbeiten:** Änderungen unter `~/.config/omarchy/plugins/local.audio-share/` werden per Datei-Watcher erkannt. Falls UI-Änderungen im QML-Cache hängen bleiben, einmal `omarchy restart shell` (bzw. `omarchy-restart-shell`) ausführen.
-- **Über Git / GitHub verteilen:** Version in `manifest.json` erhöhen, pushen und auf Zielsystemen mit `omarchy plugin update local.audio-share` + `omarchy restart shell` aktualisieren.
+## Usage
 
+1. Click the **dual-headphones icon** in the Omarchy top bar.
+2. Check **2 or more** output devices you want to combine.
+3. Toggle the switch at the top right of the popup to activate the shared virtual output.
+4. Use the top slider for overall master volume and each device's slider/mute button to fine-tune individual headphone levels.
+
+## Updating
+
+- **Installed via Marketplace / Git:**
+  ```bash
+  omarchy plugin update io.github.beginner2026-de.audio-share
+  omarchy restart shell
+  ```
+- **Local development:** Edit files inside the plugin folder and run `omarchy restart shell` if QML component caching prevents hot-reload.
+
+## Removal / Uninstallation
+
+1. Turn off the **Audio Share** toggle in the popup (this unloads the virtual sink and restores your previous default audio output).
+2. Disable and remove the plugin:
+   ```bash
+   omarchy plugin disable io.github.beginner2026-de.audio-share
+   omarchy plugin remove io.github.beginner2026-de.audio-share
+   omarchy restart shell
+   ```
+   *(If installed manually via symlink/copy, remove the directory from `~/.config/omarchy/plugins/` instead of `omarchy plugin remove`.)*
+
+## License
+
+MIT — see [LICENSE](LICENSE).

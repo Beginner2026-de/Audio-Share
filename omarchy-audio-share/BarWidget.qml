@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Layouts
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import qs.Commons as Commons
@@ -21,7 +21,7 @@ Item {
         return I18n.tr(root.localeName, key, vars)
     }
 
-    implicitWidth: pillRow.implicitWidth + 20
+    implicitWidth: 34
     implicitHeight: 28
 
     function refreshStatus() {
@@ -67,26 +67,54 @@ Item {
         border.width: root.virtualActive ? 1 : 0
         border.color: Commons.Color.primary
 
-        RowLayout {
-            id: pillRow
+        Canvas {
+            id: dualHeadphonesIcon
+            width: 20
+            height: 20
             anchors.centerIn: parent
-            spacing: 6
 
-            Text {
-                text: root.virtualActive ? "󰋋+" : "󰋋"
-                font.pixelSize: 14
-                color: root.virtualActive ? Commons.Color.primary : Commons.Color.onSurface
+            property color iconColor: root.virtualActive ? Commons.Color.primary : Commons.Color.onSurface
+
+            onIconColorChanged: requestPaint()
+            Component.onCompleted: requestPaint()
+
+            function drawHeadphone(ctx, ox, oy, alpha) {
+                ctx.save()
+                ctx.globalAlpha = alpha
+                ctx.strokeStyle = iconColor.toString()
+                ctx.fillStyle = iconColor.toString()
+                ctx.lineWidth = 1.65
+                ctx.lineCap = "round"
+                ctx.lineJoin = "round"
+
+                // Kopfbuegel
+                ctx.beginPath()
+                ctx.arc(ox + 6.5, oy + 7.0, 5.2, Math.PI, 0, false)
+                ctx.stroke()
+
+                // Linke und rechte Ohrmuschel
+                ctx.beginPath()
+                ctx.roundedRect(ox + 1.0, oy + 6.8, 2.5, 4.4, 1.1, 1.1)
+                ctx.roundedRect(ox + 9.5, oy + 6.8, 2.5, 4.4, 1.1, 1.1)
+                ctx.fill()
+                ctx.restore()
             }
 
-            Text {
-                text: root.virtualActive
-                    ? (root.t("widgetTitle") + " · " + root.selectedCount)
-                    : root.t("widgetTitle")
-                font.pixelSize: 12
-                font.weight: root.virtualActive ? Font.DemiBold : Font.Medium
-                color: root.virtualActive ? Commons.Color.primary : Commons.Color.onSurface
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+                // Hinterer Kopfhoerer (leicht nach rechts oben versetzt)
+                drawHeadphone(ctx, 5.5, 1.5, 0.55)
+                // Vorderer Kopfhoerer (leicht nach links unten versetzt)
+                drawHeadphone(ctx, 1.5, 5.5, 1.0)
             }
         }
+
+        ToolTip.visible: mouseArea.containsMouse
+        ToolTip.delay: 450
+        ToolTip.text: root.virtualActive
+            ? root.t("widgetSubtitleActive", { count: root.selectedCount })
+            : root.t("widgetSubtitleIdle")
 
         MouseArea {
             id: mouseArea

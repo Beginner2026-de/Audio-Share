@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "local.audio-share",
+  "id": "io.github.beginner2026-de.audio-share",
   "name": "Audio Share",
   "version": "1.0.0",
-  "author": "Omarchy Community",
+  "author": "Beginner2026-de",
   "license": "MIT",
   "description": "Kombiniert zwei oder mehr Audio-Ausgänge über PipeWire zu einem virtuellen Ausgang mit separater Lautstärkeregelung pro Kopfhörer.",
   "kinds": ["bar-widget", "panel"],

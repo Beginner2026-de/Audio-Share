@@ -191,6 +191,40 @@ const INITIAL_DEVICES: AudioDevice[] = [
   },
 ];
 
+function DualHeadphonesIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* Hinterer Kopfhörer (rechts oben versetzt) */}
+      <g opacity="0.55">
+        <path
+          d="M8.5 11.5V9.5a5.5 5.5 0 0 1 11 0v2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <rect x="7.5" y="10.5" width="2.6" height="4.8" rx="1.2" fill="currentColor" />
+        <rect x="17.9" y="10.5" width="2.6" height="4.8" rx="1.2" fill="currentColor" />
+      </g>
+      {/* Vorderer Kopfhörer (links unten versetzt) */}
+      <g>
+        <path
+          d="M4.5 15.5V13.5a5.5 5.5 0 0 1 11 0v2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <rect x="3.5" y="14.5" width="2.6" height="4.8" rx="1.2" fill="currentColor" />
+        <rect x="13.9" y="14.5" width="2.6" height="4.8" rx="1.2" fill="currentColor" />
+      </g>
+    </svg>
+  );
+}
+
 function DeviceIcon({ kind, className }: { kind: DeviceKind; className?: string }) {
   switch (kind) {
     case 'bluetooth':
@@ -331,7 +365,7 @@ export default function App() {
 
   const handleDownloadZip = () => {
     const entries = PLUGIN_FILES.map((f) => ({
-      path: `local.audio-share/${f.path}`,
+      path: `io.github.beginner2026-de.audio-share/${f.path}`,
       content: f.content,
       executable: f.executable,
     }));
@@ -339,7 +373,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'local.audio-share.zip';
+    anchor.download = 'io.github.beginner2026-de.audio-share.zip';
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -417,7 +451,7 @@ export default function App() {
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-400 mb-2">
-                  Quickshell Plugin · PipeWire Multi-Output · local.audio-share
+                  Quickshell Plugin · PipeWire Multi-Output · io.github.beginner2026-de.audio-share
                 </p>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-100 max-w-2xl">
                   Mehrere Kopfhörer zu einem virtuellen Ausgang bündeln
@@ -480,11 +514,17 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {/* BarWidget.qml Vorschau */}
+                    {/* BarWidget.qml Vorschau: nur Doppel-Kopfhörer-Icon ohne Text */}
                     <button
                       type="button"
                       onClick={() => setPanelOpen((v) => !v)}
-                      className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                      title={
+                        virtualActive
+                          ? simT.subtitleActive(selectedDevices.length)
+                          : simT.subtitleIdle
+                      }
+                      aria-label={simT.widgetTitle}
+                      className="inline-flex items-center justify-center w-8 h-7 rounded-lg transition-colors cursor-pointer shrink-0"
                       style={{
                         backgroundColor: virtualActive
                           ? theme.primaryContainer
@@ -495,12 +535,7 @@ export default function App() {
                           : '1px solid transparent',
                       }}
                     >
-                      <Headphones className="w-3.5 h-3.5" />
-                      <span>
-                        {virtualActive
-                          ? `Audio Share · ${selectedDevices.length}`
-                          : 'Audio Share'}
-                      </span>
+                      <DualHeadphonesIcon className="w-5 h-5" />
                     </button>
                     <span
                       className="text-xs font-mono tabular-nums"
@@ -748,8 +783,8 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="w-full py-12 text-center text-sm text-slate-400">
-                      Klicke oben in der Omarchy-Leiste auf „Audio Share“, um das Popup wieder zu
-                      öffnen.
+                      Klicke oben in der Omarchy-Leiste auf das Doppel-Kopfhörer-Symbol, um das
+                      Popup wieder zu öffnen.
                     </div>
                   )}
                 </div>
@@ -807,13 +842,11 @@ export default function App() {
 
                 <section className="bg-[#11151f] border border-slate-800 rounded-2xl p-5 space-y-3">
                   <h3 className="text-sm font-semibold text-slate-100">
-                    Schnellinstallation auf Omarchy
+                    Installation auf Omarchy (Beginner2026-de)
                   </h3>
                   <div className="bg-[#0b0e14] border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 space-y-1.5 overflow-x-auto">
-                    <div>mkdir -p ~/.config/omarchy/plugins</div>
-                    <div>unzip local.audio-share.zip -d ~/.config/omarchy/plugins/</div>
-                    <div>omarchy plugin validate ~/.config/omarchy/plugins/local.audio-share</div>
-                    <div>omarchy plugin enable local.audio-share &amp;&amp; omarchy-restart-shell</div>
+                    <div>omarchy plugin add https://github.com/Beginner2026-de/Omarchy-Audio-share.git --enable</div>
+                    <div>omarchy restart shell</div>
                   </div>
                   <div className="flex items-center gap-3 pt-1">
                     <button
@@ -822,10 +855,8 @@ export default function App() {
                         handleCopy(
                           'install-cmd',
                           [
-                            'mkdir -p ~/.config/omarchy/plugins',
-                            'unzip local.audio-share.zip -d ~/.config/omarchy/plugins/',
-                            'omarchy plugin validate ~/.config/omarchy/plugins/local.audio-share',
-                            'omarchy plugin enable local.audio-share && omarchy-restart-shell',
+                            'omarchy plugin add https://github.com/Beginner2026-de/Omarchy-Audio-share.git --enable',
+                            'omarchy restart shell',
                           ].join('\n')
                         )
                       }
@@ -843,7 +874,7 @@ export default function App() {
                       onClick={() => setActiveTab('files')}
                       className="text-xs font-medium text-sky-400 hover:text-sky-300 whitespace-nowrap shrink-0 cursor-pointer"
                     >
-                      Alle 5 Plugin-Dateien ansehen →
+                      Alle {PLUGIN_FILES.length} Plugin-Dateien ansehen →
                     </button>
                   </div>
                 </section>
@@ -948,7 +979,11 @@ export default function App() {
                   <p>
                     Lokale Änderungen erkennt Omarchy per Datei-Watcher; bei QML-Cache hilft{' '}
                     <code className="text-slate-200">omarchy restart shell</code>. Bei Git-Plugins
-                    genügt <code className="text-slate-200">omarchy plugin update local.audio-share</code>.
+                    genügt{' '}
+                    <code className="text-slate-200">
+                      omarchy plugin update io.github.beginner2026-de.audio-share
+                    </code>
+                    .
                   </p>
                 </div>
               </div>
@@ -961,7 +996,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-400 mb-2">
-                  Zielpfad · ~/.config/omarchy/plugins/local.audio-share/
+                  Zielpfad · ~/.config/omarchy/plugins/io.github.beginner2026-de.audio-share/
                 </p>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-100">
                   Erzeugte Plugin-Dateien
@@ -986,7 +1021,7 @@ export default function App() {
               <aside className="lg:col-span-4 bg-[#11151f] border border-slate-800 rounded-2xl p-3 space-y-1">
                 <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-400">
                   <FolderOpen className="w-4 h-4" />
-                  <span>local.audio-share/</span>
+                  <span>io.github.beginner2026-de.audio-share/</span>
                 </div>
                 {PLUGIN_FILES.map((file) => (
                   <button
@@ -1013,7 +1048,7 @@ export default function App() {
               <div className="lg:col-span-8 bg-[#11151f] border border-slate-800 rounded-2xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-4">
                   <span className="text-xs font-mono text-slate-200 truncate">
-                    local.audio-share/{activeFile.path}
+                    io.github.beginner2026-de.audio-share/{activeFile.path}
                   </span>
                   <span className="text-xs text-slate-400 shrink-0">
                     {activeFile.language}
