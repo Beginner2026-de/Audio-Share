@@ -365,7 +365,7 @@ export default function App() {
 
   const handleDownloadZip = () => {
     const entries = PLUGIN_FILES.map((f) => ({
-      path: `io.github.beginner2026-de.audio-share/${f.path}`,
+      path: f.path,
       content: f.content,
       executable: f.executable,
     }));
@@ -373,7 +373,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'io.github.beginner2026-de.audio-share.zip';
+    anchor.download = 'Omarchy-Audio-share.zip';
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -996,7 +996,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-400 mb-2">
-                  Zielpfad · ~/.config/omarchy/plugins/io.github.beginner2026-de.audio-share/
+                  Repo-Root · github.com/Beginner2026-de/Omarchy-Audio-share
                 </p>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-100">
                   Erzeugte Plugin-Dateien
@@ -1021,7 +1021,7 @@ export default function App() {
               <aside className="lg:col-span-4 bg-[#11151f] border border-slate-800 rounded-2xl p-3 space-y-1">
                 <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-400">
                   <FolderOpen className="w-4 h-4" />
-                  <span>io.github.beginner2026-de.audio-share/</span>
+                  <span>Omarchy-Audio-share/</span>
                 </div>
                 {PLUGIN_FILES.map((file) => (
                   <button
@@ -1048,7 +1048,7 @@ export default function App() {
               <div className="lg:col-span-8 bg-[#11151f] border border-slate-800 rounded-2xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-4">
                   <span className="text-xs font-mono text-slate-200 truncate">
-                    io.github.beginner2026-de.audio-share/{activeFile.path}
+                    {activeFile.path}
                   </span>
                   <span className="text-xs text-slate-400 shrink-0">
                     {activeFile.language}

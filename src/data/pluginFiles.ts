@@ -1,10 +1,10 @@
-import manifestRaw from '../../omarchy-audio-share/manifest.json?raw';
-import barWidgetRaw from '../../omarchy-audio-share/BarWidget.qml?raw';
-import panelRaw from '../../omarchy-audio-share/Panel.qml?raw';
-import i18nRaw from '../../omarchy-audio-share/i18n.js?raw';
-import audioShareShRaw from '../../omarchy-audio-share/scripts/audio-share.sh?raw';
-import readmeRaw from '../../omarchy-audio-share/README.md?raw';
-import licenseRaw from '../../omarchy-audio-share/LICENSE?raw';
+import manifestRaw from '../../manifest.json?raw';
+import barWidgetRaw from '../../BarWidget.qml?raw';
+import panelRaw from '../../Panel.qml?raw';
+import i18nRaw from '../../i18n.js?raw';
+import audioShareShRaw from '../../scripts/audio-share.sh?raw';
+import readmeRaw from '../../README.md?raw';
+import licenseRaw from '../../LICENSE?raw';
 
 export interface PluginFile {
   id: string;
