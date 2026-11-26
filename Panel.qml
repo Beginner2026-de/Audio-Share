@@ -368,11 +368,21 @@ PopupWindow {
                     ToolTip {
                         visible: refreshMouse.containsMouse
                         delay: 250
+                        padding: 8
                         text: popupWin.t("refreshTooltip")
                         contentItem: Text {
+                            id: refreshTipText
                             text: parent.text
                             font.pixelSize: 11
                             color: popupWin.themeFg
+                            wrapMode: Text.WordWrap
+                            implicitWidth: Math.min(240, refreshTipMetrics.width)
+
+                            TextMetrics {
+                                id: refreshTipMetrics
+                                font: refreshTipText.font
+                                text: refreshTipText.text
+                            }
                         }
                         background: Rectangle {
                             color: popupWin.themeBg

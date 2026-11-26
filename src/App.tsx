@@ -44,7 +44,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Ausgangsmedien & individuelle Lautstärke',
     mute: 'Stumm',
     hintMinTwo: 'Wähle mindestens 2 Ausgabegeräte aus, um den gemeinsamen virtuellen Ausgang zu aktivieren.',
-    refreshTitle: 'Audio-Ausgänge neu einlesen (z. B. nach Anschließen von Bluetooth- oder USB-Kopfhörern)',
+    refreshTitle: 'Audio-Ausgänge & Lautstärke neu einlesen (z. B. nach Verbinden von Bluetooth-/USB-Kopfhörern). Auswahl bleibt erhalten.',
   },
   en: {
     widgetTitle: 'Audio Share',
@@ -54,7 +54,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Output devices & individual volume',
     mute: 'Muted',
     hintMinTwo: 'Select at least 2 output devices to enable the shared virtual output.',
-    refreshTitle: 'Rescan audio outputs (e.g. after connecting Bluetooth or USB headphones)',
+    refreshTitle: 'Rescan audio outputs & volumes (e.g. after connecting Bluetooth/USB headphones). Does not reset your selection.',
   },
   fr: {
     widgetTitle: 'Audio Share',
@@ -64,7 +64,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Périphériques de sortie & volume individuel',
     mute: 'Muet',
     hintMinTwo: 'Sélectionnez au moins 2 sorties pour activer la sortie virtuelle partagée.',
-    refreshTitle: 'Actualiser les sorties audio (ex. après connexion d’un casque Bluetooth ou USB)',
+    refreshTitle: 'Actualiser les sorties audio et volumes (ex. après connexion d’un casque Bluetooth/USB). Ne réinitialise pas la sélection.',
   },
   es: {
     widgetTitle: 'Audio Share',
@@ -74,7 +74,7 @@ const SIM_STRINGS: Record<
     outputsHeading: 'Dispositivos de salida y volumen individual',
     mute: 'Silencio',
     hintMinTwo: 'Selecciona al menos 2 dispositivos para activar la salida virtual compartida.',
-    refreshTitle: 'Actualizar salidas de audio (ej. tras conectar auriculares Bluetooth o USB)',
+    refreshTitle: 'Actualizar salidas de audio y volumen (ej. tras conectar auriculares Bluetooth/USB). No reinicia tu selección.',
   },
 };
 
