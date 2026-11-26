@@ -1,9 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Window
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
+import Quickshell.Hyprland
 import qs.Commons as Commons
 import "i18n.js" as I18n
 
@@ -15,9 +14,7 @@ PanelWindow {
     property bool opened: false
     property double lastClosedAt: 0
     property bool scrollTopPending: false
-
-    property real cardX: Math.max(12, popupWin.width - 432)
-    property real cardY: 44
+    property int rightMargin: 12
 
     property string localeName: Qt.locale().name
     property bool virtualActive: false
@@ -74,30 +71,25 @@ PanelWindow {
         })
     }
 
-    function updatePosition() {
-        if (!popupWin.anchorItem) return
+    function updateAlignment() {
         try {
-            const win = popupWin.anchorItem.Window.window
-            if (win && win.screen) {
-                popupWin.screen = win.screen
+            const barObj = popupWin.hostWidget ? popupWin.hostWidget.bar : null
+            if (popupWin.anchorItem && barObj && barObj.width > 0) {
+                const pos = popupWin.anchorItem.mapToItem(null, 0, 0)
+                const iconCenterX = pos.x + (popupWin.anchorItem.width / 2)
+                const desiredRight = Math.round(barObj.width - iconCenterX - (popupWin.implicitWidth / 2))
+                popupWin.rightMargin = Math.max(12, Math.min(barObj.width - popupWin.implicitWidth - 12, desiredRight))
+                return
             }
-            const pos = popupWin.anchorItem.mapToItem(null, 0, 0)
-            const barH = (win && win.height > 0) ? win.height : 38
-            const maxW = popupWin.width > 0
-                ? popupWin.width
-                : ((win && win.width > 0) ? win.width : 1920)
-            const desiredX = pos.x + (popupWin.anchorItem.width / 2) - (cardRoot.width / 2)
-            popupWin.cardX = Math.max(12, Math.min(maxW - cardRoot.width - 12, desiredX))
-            popupWin.cardY = barH + 6
         } catch (e) {
-            popupWin.cardX = Math.max(12, (popupWin.width > 0 ? popupWin.width : 1920) - cardRoot.width - 12)
-            popupWin.cardY = 44
+            // Fallback auf Standard-Abstand rechts
         }
+        popupWin.rightMargin = 12
     }
 
     function open() {
         if (!popupWin.anchorItem) return
-        popupWin.updatePosition()
+        popupWin.updateAlignment()
         popupWin.opened = true
         popupWin.scrollTopPending = true
         popupWin.runAction(["status"])
@@ -119,19 +111,27 @@ PanelWindow {
 
     anchors {
         top: true
-        bottom: true
-        left: true
         right: true
     }
 
-    exclusionMode: ExclusionMode.Ignore
-    focusable: true
-    WlrLayershell.layer: WlrLayer.Overlay
-    color: "transparent"
-    visible: popupWin.opened && popupWin.anchorItem !== null
+    margins {
+        top: 6
+        right: popupWin.rightMargin
+    }
 
-    onWidthChanged: {
-        if (popupWin.opened) popupWin.updatePosition()
+    exclusiveZone: 0
+    aboveWindows: true
+    focusable: popupWin.opened
+    visible: popupWin.opened && popupWin.anchorItem !== null
+    color: "transparent"
+    implicitWidth: 420
+    implicitHeight: Math.min(580, contentCol.implicitHeight + 32)
+
+    HyprlandFocusGrab {
+        id: focusGrab
+        active: popupWin.visible
+        windows: [popupWin]
+        onCleared: popupWin.close()
     }
 
     function runAction(args, forceRestart) {
@@ -256,13 +256,6 @@ PanelWindow {
         }
     }
 
-    // Vollbild-Klickfaenger hinter dem Popup: schliesst bei Klick ausserhalb sofort
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.AllButtons
-        onPressed: popupWin.close()
-    }
-
     // Wiederverwendbarer Slider im System-Theme
     component ThemeSlider: Item {
         id: sliderRoot
@@ -330,10 +323,7 @@ PanelWindow {
 
     Rectangle {
         id: cardRoot
-        x: popupWin.cardX
-        y: popupWin.cardY
-        width: 420
-        height: Math.min(580, contentCol.implicitHeight + 32)
+        anchors.fill: parent
         radius: 14
         color: popupWin.themeBg
         border.width: 1
@@ -341,15 +331,6 @@ PanelWindow {
         focus: popupWin.opened
 
         Keys.onEscapePressed: popupWin.close()
-
-        // Verhindert, dass Klicks auf leere Flaechen im Popup zum Hintergrund durchfallen
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.AllButtons
-            onPressed: (mouse) => {
-                mouse.accepted = true
-            }
-        }
 
         ColumnLayout {
             id: contentCol
