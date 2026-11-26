@@ -514,7 +514,7 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {/* BarWidget.qml Vorschau: nur Doppel-Kopfhörer-Icon ohne Text */}
+                    {/* BarWidget.qml Vorschau: nur Doppel-Kopfhörer-Icon ohne Text und ohne Hintergrund-Box */}
                     <button
                       type="button"
                       onClick={() => setPanelOpen((v) => !v)}
@@ -524,18 +524,12 @@ export default function App() {
                           : simT.subtitleIdle
                       }
                       aria-label={simT.widgetTitle}
-                      className="inline-flex items-center justify-center w-8 h-7 rounded-lg transition-colors cursor-pointer shrink-0"
+                      className="inline-flex items-center justify-center w-6 h-6 cursor-pointer shrink-0 bg-transparent border-0"
                       style={{
-                        backgroundColor: virtualActive
-                          ? theme.primaryContainer
-                          : 'transparent',
                         color: virtualActive ? theme.primary : theme.onSurface,
-                        border: virtualActive
-                          ? `1px solid ${theme.primary}`
-                          : '1px solid transparent',
                       }}
                     >
-                      <DualHeadphonesIcon className="w-5 h-5" />
+                      <DualHeadphonesIcon className="w-4 h-4" />
                     </button>
                     <span
                       className="text-xs font-mono tabular-nums"

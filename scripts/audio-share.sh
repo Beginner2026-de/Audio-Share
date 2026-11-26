@@ -92,6 +92,32 @@ for mod in modules_raw:
 
 selected_set = set(active_slaves if active_slaves else saved_slaves)
 
+def read_omarchy_theme():
+    candidates = [
+        os.path.expanduser("~/.config/omarchy/current/theme/colors.toml"),
+        os.path.expanduser("~/.local/state/omarchy/current/theme/colors.toml"),
+    ]
+    theme = {}
+    for path in candidates:
+        if os.path.isfile(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.split("#", 1)[0].strip() if not v.strip().startswith(('"#', "'#")) else v.strip()
+                        v = v.strip().strip('"').strip("'")
+                        if v.startswith("#") and len(v) in (4, 7, 9):
+                            theme[k] = v
+                if theme:
+                    break
+            except Exception:
+                pass
+    return theme
+
 physical_sinks = []
 for s in sinks_raw:
     name = s.get("name", "")
@@ -120,6 +146,7 @@ print(json.dumps({
     "virtualVolume": virtual_volume,
     "virtualMute": virtual_mute,
     "defaultSink": default_sink,
+    "theme": read_omarchy_theme(),
     "sinks": physical_sinks
 }))
 PY

@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.Commons as Commons
 import "i18n.js" as I18n
 
@@ -12,6 +13,7 @@ PopupWindow {
     property var anchorItem: null
     property var hostWidget: null
     property bool opened: false
+    property double lastClosedAt: 0
 
     property string localeName: Qt.locale().name
     property bool virtualActive: false
@@ -21,6 +23,39 @@ PopupWindow {
     property bool busy: false
     property string statusMessage: ""
     property string scriptPath: Qt.resolvedUrl("scripts/audio-share.sh").toString().replace("file://", "")
+
+    // Fallback-Farben aus ~/.config/omarchy/current/theme/colors.toml
+    property string tomlBg: "#1a1b26"
+    property string tomlFg: "#c0caf5"
+    property string tomlAccent: "#7aa2f7"
+    property string tomlError: "#f7768e"
+
+    // Echte Omarchy-Theme-Farben (qs.Commons.Color + colors.toml Fallback)
+    readonly property color themeBg: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.popups && Commons.Color.popups.background)
+        ? Commons.Color.popups.background
+        : ((typeof Commons !== "undefined" && Commons.Color && Commons.Color.background)
+            ? Commons.Color.background
+            : popupWin.tomlBg)
+
+    readonly property color themeFg: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.popups && Commons.Color.popups.foreground)
+        ? Commons.Color.popups.foreground
+        : ((typeof Commons !== "undefined" && Commons.Color && Commons.Color.foreground)
+            ? Commons.Color.foreground
+            : popupWin.tomlFg)
+
+    readonly property color themeAccent: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.accent)
+        ? Commons.Color.accent
+        : popupWin.tomlAccent
+
+    readonly property color themeBorder: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.popups && Commons.Color.popups.border)
+        ? Commons.Color.popups.border
+        : Qt.rgba(themeFg.r, themeFg.g, themeFg.b, 0.16)
+
+    readonly property color themeCardBg: Qt.rgba(themeFg.r, themeFg.g, themeFg.b, 0.05)
+    readonly property color themeCardSelectedBg: Qt.rgba(themeAccent.r, themeAccent.g, themeAccent.b, 0.12)
+    readonly property color themeMutedFg: Qt.rgba(themeFg.r, themeFg.g, themeFg.b, 0.65)
+    readonly property color themeTrackBg: Qt.rgba(themeFg.r, themeFg.g, themeFg.b, 0.18)
+    readonly property color themeError: popupWin.tomlError
 
     function t(key, vars) {
         return I18n.tr(popupWin.localeName, key, vars)
@@ -33,12 +68,17 @@ PopupWindow {
     }
 
     function close() {
+        if (!popupWin.opened) return
+        popupWin.lastClosedAt = Date.now()
         popupWin.opened = false
     }
 
     function toggle() {
-        if (popupWin.opened) popupWin.close()
-        else popupWin.open()
+        if (popupWin.opened) {
+            popupWin.close()
+        } else if (Date.now() - popupWin.lastClosedAt > 220) {
+            popupWin.open()
+        }
     }
 
     anchor.item: popupWin.anchorItem
@@ -50,6 +90,12 @@ PopupWindow {
     color: "transparent"
     implicitWidth: 420
     implicitHeight: Math.min(580, contentCol.implicitHeight + 32)
+
+    HyprlandFocusGrab {
+        active: popupWin.opened
+        windows: [popupWin]
+        onCleared: popupWin.close()
+    }
 
     function runAction(args) {
         if (actionProc.running) return
@@ -68,6 +114,13 @@ PopupWindow {
             popupWin.virtualActive = Boolean(data.virtualActive)
             popupWin.virtualVolume = Number(data.virtualVolume ?? 100)
             popupWin.virtualMute = Boolean(data.virtualMute)
+            if (data.theme) {
+                if (data.theme.background) popupWin.tomlBg = data.theme.background
+                if (data.theme.foreground) popupWin.tomlFg = data.theme.foreground
+                if (data.theme.accent) popupWin.tomlAccent = data.theme.accent
+                else if (data.theme.color4) popupWin.tomlAccent = data.theme.color4
+                if (data.theme.color1) popupWin.tomlError = data.theme.color1
+            }
             popupWin.sinks = Array.isArray(data.sinks) ? data.sinks : []
             popupWin.statusMessage = ""
             if (popupWin.hostWidget && popupWin.hostWidget.refreshStatus) {
@@ -142,13 +195,75 @@ PopupWindow {
         }
     }
 
+    // Wiederverwendbarer Slider im System-Theme
+    component ThemeSlider: Item {
+        id: sliderRoot
+        property int value: 100
+        property int maximum: 150
+        property bool enabledControl: true
+        signal valueChangedByUser(int newValue)
+        signal valueCommitted(int newValue)
+
+        implicitHeight: 22
+
+        Rectangle {
+            id: track
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            height: 6
+            radius: 3
+            color: popupWin.themeTrackBg
+            opacity: sliderRoot.enabledControl ? 1.0 : 0.4
+
+            Rectangle {
+                width: Math.max(0, Math.min(parent.width, parent.width * (sliderRoot.value / sliderRoot.maximum)))
+                height: parent.height
+                radius: 3
+                color: popupWin.themeAccent
+            }
+        }
+
+        Rectangle {
+            id: thumb
+            width: 14
+            height: 14
+            radius: 7
+            anchors.verticalCenter: parent.verticalCenter
+            x: Math.max(0, Math.min(parent.width - width, (parent.width - width) * (sliderRoot.value / sliderRoot.maximum)))
+            color: popupWin.themeAccent
+            border.width: 2
+            border.color: popupWin.themeBg
+            opacity: sliderRoot.enabledControl ? 1.0 : 0.45
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            enabled: sliderRoot.enabledControl
+            cursorShape: Qt.PointingHandCursor
+            function updateFromX(mouseX) {
+                var ratio = Math.max(0, Math.min(1, mouseX / Math.max(1, width)))
+                var nextVal = Math.round(ratio * sliderRoot.maximum)
+                sliderRoot.valueChangedByUser(nextVal)
+                return nextVal
+            }
+            onPressed: (mouse) => updateFromX(mouse.x)
+            onPositionChanged: (mouse) => {
+                if (pressed) updateFromX(mouse.x)
+            }
+            onReleased: (mouse) => {
+                var val = updateFromX(mouse.x)
+                sliderRoot.valueCommitted(val)
+            }
+        }
+    }
+
     Rectangle {
         id: cardRoot
         anchors.fill: parent
         radius: 14
-        color: Commons.Color.surface
+        color: popupWin.themeBg
         border.width: 1
-        border.color: Commons.Color.outline
+        border.color: popupWin.themeBorder
         focus: popupWin.opened
 
         Keys.onEscapePressed: popupWin.close()
@@ -157,9 +272,9 @@ PopupWindow {
             id: contentCol
             anchors.fill: parent
             anchors.margins: 16
-            spacing: 14
+            spacing: 12
 
-            // Kopfzeile: Titel + Master-Switch fuer den virtuellen Ausgang
+            // Kopfzeile: Titel + Aktualisieren + Master-Switch
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
@@ -172,7 +287,7 @@ PopupWindow {
                         text: popupWin.t("widgetTitle")
                         font.pixelSize: 16
                         font.weight: Font.Bold
-                        color: Commons.Color.onSurface
+                        color: popupWin.themeFg
                     }
 
                     Text {
@@ -180,21 +295,62 @@ PopupWindow {
                             ? popupWin.t("widgetSubtitleActive", { count: popupWin.selectedSinkNames().length })
                             : popupWin.t("widgetSubtitleIdle")
                         font.pixelSize: 12
-                        color: popupWin.virtualActive ? Commons.Color.primary : Commons.Color.onSurfaceVariant
+                        color: popupWin.virtualActive ? popupWin.themeAccent : popupWin.themeMutedFg
                     }
                 }
 
-                Button {
-                    text: popupWin.t("refresh")
-                    flat: true
-                    font.pixelSize: 12
-                    onClicked: popupWin.runAction(["status"])
+                // Aktualisieren-Button
+                Rectangle {
+                    width: 28
+                    height: 28
+                    radius: 7
+                    color: refreshMouse.containsMouse ? popupWin.themeCardBg : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "↻"
+                        font.pixelSize: 15
+                        color: popupWin.themeMutedFg
+                    }
+
+                    MouseArea {
+                        id: refreshMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: popupWin.runAction(["status"])
+                    }
                 }
 
-                Switch {
-                    checked: popupWin.virtualActive
-                    enabled: popupWin.virtualActive || popupWin.selectedSinkNames().length >= 2
-                    onToggled: popupWin.toggleVirtualOutput()
+                // Custom Theme Switch
+                Rectangle {
+                    id: masterSwitch
+                    property bool canToggle: popupWin.virtualActive || popupWin.selectedSinkNames().length >= 2
+                    width: 44
+                    height: 24
+                    radius: 12
+                    opacity: canToggle ? 1.0 : 0.4
+                    color: popupWin.virtualActive ? popupWin.themeAccent : popupWin.themeTrackBg
+
+                    Rectangle {
+                        width: 18
+                        height: 18
+                        radius: 9
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: popupWin.virtualActive ? parent.width - width - 3 : 3
+                        color: popupWin.virtualActive ? popupWin.themeBg : popupWin.themeFg
+
+                        Behavior on x {
+                            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: masterSwitch.canToggle
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: popupWin.toggleVirtualOutput()
+                    }
                 }
             }
 
@@ -203,9 +359,9 @@ PopupWindow {
                 Layout.fillWidth: true
                 implicitHeight: masterCol.implicitHeight + 20
                 radius: 10
-                color: Commons.Color.surfaceVariant
+                color: popupWin.virtualActive ? popupWin.themeCardSelectedBg : popupWin.themeCardBg
                 border.width: 1
-                border.color: popupWin.virtualActive ? Commons.Color.primary : Commons.Color.outline
+                border.color: popupWin.virtualActive ? popupWin.themeAccent : popupWin.themeBorder
 
                 ColumnLayout {
                     id: masterCol
@@ -221,38 +377,48 @@ PopupWindow {
                             text: popupWin.t("masterVolume")
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
-                            color: Commons.Color.onSurface
+                            color: popupWin.themeFg
                         }
 
                         Text {
                             text: popupWin.virtualMute ? popupWin.t("mute") : (popupWin.virtualVolume + " %")
                             font.pixelSize: 12
                             font.family: "JetBrains Mono"
-                            color: Commons.Color.onSurfaceVariant
+                            color: popupWin.themeMutedFg
                         }
 
-                        Button {
-                            text: popupWin.virtualMute ? "󰖁" : "󰕾"
-                            flat: true
-                            implicitWidth: 32
-                            implicitHeight: 28
-                            onClicked: popupWin.runAction(["toggle-master-mute"])
+                        Rectangle {
+                            width: 28
+                            height: 26
+                            radius: 6
+                            color: masterMuteMouse.containsMouse ? popupWin.themeTrackBg : "transparent"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: popupWin.virtualMute ? "󰖁" : "󰕾"
+                                font.pixelSize: 14
+                                color: popupWin.virtualMute ? popupWin.themeError : popupWin.themeFg
+                            }
+
+                            MouseArea {
+                                id: masterMuteMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: popupWin.runAction(["toggle-master-mute"])
+                            }
                         }
                     }
 
-                    Slider {
+                    ThemeSlider {
                         Layout.fillWidth: true
-                        from: 0
-                        to: 150
-                        stepSize: 1
                         value: popupWin.virtualVolume
-                        onMoved: {
-                            popupWin.virtualVolume = Math.round(value)
+                        enabledControl: !popupWin.virtualMute
+                        onValueChangedByUser: (val) => {
+                            popupWin.virtualVolume = val
                         }
-                        onPressedChanged: {
-                            if (!pressed) {
-                                popupWin.runAction(["set-master-volume", String(Math.round(value))])
-                            }
+                        onValueCommitted: (val) => {
+                            popupWin.runAction(["set-master-volume", String(val)])
                         }
                     }
                 }
@@ -262,7 +428,7 @@ PopupWindow {
                 text: popupWin.t("outputsHeading")
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
-                color: Commons.Color.onSurfaceVariant
+                color: popupWin.themeMutedFg
             }
 
             // Liste aller Ausgabegeraete mit Auswahl + eigenem Lautstaerke-Slider
@@ -280,9 +446,9 @@ PopupWindow {
                         width: ListView.view.width
                         implicitHeight: deviceCol.implicitHeight + 18
                         radius: 10
-                        color: modelData.selected ? Commons.Color.surfaceContainerHigh : Commons.Color.surfaceVariant
+                        color: modelData.selected ? popupWin.themeCardSelectedBg : popupWin.themeCardBg
                         border.width: 1
-                        border.color: modelData.selected ? Commons.Color.primary : Commons.Color.outline
+                        border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeBorder
 
                         ColumnLayout {
                             id: deviceCol
@@ -294,15 +460,35 @@ PopupWindow {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                CheckBox {
-                                    checked: Boolean(modelData.selected)
-                                    onToggled: popupWin.toggleSinkSelection(modelData.name)
+                                // Custom Theme CheckBox
+                                Rectangle {
+                                    width: 18
+                                    height: 18
+                                    radius: 5
+                                    color: modelData.selected ? popupWin.themeAccent : "transparent"
+                                    border.width: 1.5
+                                    border.color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
+
+                                    Text {
+                                        visible: Boolean(modelData.selected)
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        font.pixelSize: 11
+                                        font.bold: true
+                                        color: popupWin.themeBg
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: popupWin.toggleSinkSelection(modelData.name)
+                                    }
                                 }
 
                                 Text {
                                     text: popupWin.iconGlyph(modelData.icon)
                                     font.pixelSize: 15
-                                    color: modelData.selected ? Commons.Color.primary : Commons.Color.onSurfaceVariant
+                                    color: modelData.selected ? popupWin.themeAccent : popupWin.themeMutedFg
                                 }
 
                                 Text {
@@ -311,36 +497,50 @@ PopupWindow {
                                     elide: Text.ElideRight
                                     font.pixelSize: 13
                                     font.weight: modelData.selected ? Font.DemiBold : Font.Normal
-                                    color: Commons.Color.onSurface
+                                    color: popupWin.themeFg
                                 }
 
                                 Text {
                                     text: modelData.mute ? popupWin.t("mute") : (modelData.volume + " %")
                                     font.pixelSize: 12
                                     font.family: "JetBrains Mono"
-                                    color: Commons.Color.onSurfaceVariant
+                                    color: popupWin.themeMutedFg
                                 }
 
-                                Button {
-                                    text: modelData.mute ? "󰖁" : "󰕾"
-                                    flat: true
-                                    implicitWidth: 32
-                                    implicitHeight: 28
-                                    onClicked: popupWin.runAction(["toggle-mute", modelData.name])
+                                Rectangle {
+                                    width: 28
+                                    height: 26
+                                    radius: 6
+                                    color: devMuteMouse.containsMouse ? popupWin.themeTrackBg : "transparent"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.mute ? "󰖁" : "󰕾"
+                                        font.pixelSize: 14
+                                        color: modelData.mute ? popupWin.themeError : popupWin.themeFg
+                                    }
+
+                                    MouseArea {
+                                        id: devMuteMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: popupWin.runAction(["toggle-mute", modelData.name])
+                                    }
                                 }
                             }
 
-                            Slider {
+                            ThemeSlider {
                                 Layout.fillWidth: true
-                                from: 0
-                                to: 150
-                                stepSize: 1
                                 value: modelData.volume
-                                enabled: !modelData.mute
-                                onPressedChanged: {
-                                    if (!pressed) {
-                                        popupWin.runAction(["set-volume", modelData.name, String(Math.round(value))])
-                                    }
+                                enabledControl: !modelData.mute
+                                onValueChangedByUser: (val) => {
+                                    popupWin.sinks = popupWin.sinks.map(s =>
+                                        s.name === modelData.name ? Object.assign({}, s, { volume: val }) : s
+                                    )
+                                }
+                                onValueCommitted: (val) => {
+                                    popupWin.runAction(["set-volume", modelData.name, String(val)])
                                 }
                             }
                         }
@@ -354,7 +554,7 @@ PopupWindow {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 font.pixelSize: 11
-                color: popupWin.statusMessage.length > 0 ? Commons.Color.error : Commons.Color.onSurfaceVariant
+                color: popupWin.statusMessage.length > 0 ? popupWin.themeError : popupWin.themeMutedFg
                 text: popupWin.statusMessage.length > 0
                     ? popupWin.statusMessage
                     : popupWin.t("hintMinTwo")

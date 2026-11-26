@@ -14,9 +14,17 @@ Item {
     property int selectedCount: 0
     property int masterVolume: 100
     property bool masterMute: false
+    property string themeForeground: "#c0caf5"
+    property string themeAccent: "#7aa2f7"
     property string scriptPath: Qt.resolvedUrl("scripts/audio-share.sh").toString().replace("file://", "")
 
     readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+    readonly property color iconBaseColor: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.foreground)
+        ? Commons.Color.foreground
+        : root.themeForeground
+    readonly property color iconAccentColor: (typeof Commons !== "undefined" && Commons.Color && Commons.Color.accent)
+        ? Commons.Color.accent
+        : root.themeAccent
 
     function t(key, vars) {
         return I18n.tr(root.localeName, key, vars)
@@ -36,12 +44,12 @@ Item {
 
     function injectPanel() {
         if (!panelLoader.item) return
-        panelLoader.item.anchorItem = buttonRect
+        panelLoader.item.anchorItem = buttonHitbox
         panelLoader.item.hostWidget = root
     }
 
-    implicitWidth: 34
-    implicitHeight: 28
+    implicitWidth: 26
+    implicitHeight: 24
 
     function refreshStatus() {
         if (!statusProc.running) {
@@ -71,6 +79,11 @@ Item {
                     root.virtualActive = Boolean(data.virtualActive)
                     root.masterVolume = Number(data.virtualVolume ?? 100)
                     root.masterMute = Boolean(data.virtualMute)
+                    if (data.theme) {
+                        if (data.theme.foreground) root.themeForeground = data.theme.foreground
+                        if (data.theme.accent) root.themeAccent = data.theme.accent
+                        else if (data.theme.color4) root.themeAccent = data.theme.color4
+                    }
                     const sinks = Array.isArray(data.sinks) ? data.sinks : []
                     root.selectedCount = sinks.filter(s => s.selected).length
                 } catch (e) {
@@ -90,25 +103,19 @@ Item {
         }
     }
 
-    Rectangle {
-        id: buttonRect
+    Item {
+        id: buttonHitbox
         anchors.fill: parent
-        radius: 8
-        color: mouseArea.containsMouse || root.opened
-            ? Commons.Color.surfaceVariant
-            : (root.virtualActive ? Commons.Color.primaryContainer : "transparent")
-        border.width: root.virtualActive || root.opened ? 1 : 0
-        border.color: Commons.Color.primary
 
         Canvas {
             id: dualHeadphonesIcon
-            width: 20
-            height: 20
+            width: 15
+            height: 15
             anchors.centerIn: parent
 
-            property color iconColor: root.virtualActive || root.opened
-                ? Commons.Color.primary
-                : Commons.Color.onSurface
+            property color iconColor: root.virtualActive
+                ? root.iconAccentColor
+                : root.iconBaseColor
 
             onIconColorChanged: requestPaint()
             Component.onCompleted: requestPaint()
@@ -118,19 +125,19 @@ Item {
                 ctx.globalAlpha = alpha
                 ctx.strokeStyle = iconColor.toString()
                 ctx.fillStyle = iconColor.toString()
-                ctx.lineWidth = 1.65
+                ctx.lineWidth = 1.35
                 ctx.lineCap = "round"
                 ctx.lineJoin = "round"
 
                 // Kopfbuegel
                 ctx.beginPath()
-                ctx.arc(ox + 6.5, oy + 7.0, 5.2, Math.PI, 0, false)
+                ctx.arc(ox + 5.0, oy + 5.4, 4.0, Math.PI, 0, false)
                 ctx.stroke()
 
                 // Linke und rechte Ohrmuschel
                 ctx.beginPath()
-                ctx.roundedRect(ox + 1.0, oy + 6.8, 2.5, 4.4, 1.1, 1.1)
-                ctx.roundedRect(ox + 9.5, oy + 6.8, 2.5, 4.4, 1.1, 1.1)
+                ctx.roundedRect(ox + 0.8, oy + 5.2, 1.9, 3.4, 0.85, 0.85)
+                ctx.roundedRect(ox + 7.3, oy + 5.2, 1.9, 3.4, 0.85, 0.85)
                 ctx.fill()
                 ctx.restore()
             }
@@ -139,9 +146,9 @@ Item {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
                 // Hinterer Kopfhoerer (leicht nach rechts oben versetzt)
-                drawHeadphone(ctx, 5.5, 1.5, 0.55)
+                drawHeadphone(ctx, 4.0, 1.0, 0.58)
                 // Vorderer Kopfhoerer (leicht nach links unten versetzt)
-                drawHeadphone(ctx, 1.5, 5.5, 1.0)
+                drawHeadphone(ctx, 1.0, 4.2, 1.0)
             }
         }
 
