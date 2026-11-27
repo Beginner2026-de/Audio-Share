@@ -17,7 +17,9 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { PLUGIN_FILES, type PluginFile } from './data/pluginFiles';
-import { createZipBlob } from './utils/zipBuilder';
+import { createZipBlob, type ZipEntryInput } from './utils/zipBuilder';
+import previewImgUrl from '../preview.png?url';
+import previewIdleImgUrl from '../assets/preview-idle.png?url';
 
 type ViewTab = 'preview' | 'architecture' | 'files';
 type DeviceKind = 'bluetooth' | 'headphones' | 'usb' | 'hdmi' | 'speaker';
@@ -374,12 +376,30 @@ export default function App() {
     }
   };
 
-  const handleDownloadZip = () => {
-    const entries = PLUGIN_FILES.map((f) => ({
+  const handleDownloadZip = async () => {
+    const entries: ZipEntryInput[] = PLUGIN_FILES.map((f) => ({
       path: f.path,
       content: f.content,
       executable: f.executable,
     }));
+
+    const binaryAssets: Array<{ path: string; url: string }> = [
+      { path: 'preview.png', url: previewImgUrl },
+      { path: 'assets/preview-idle.png', url: previewIdleImgUrl },
+    ];
+
+    for (const asset of binaryAssets) {
+      try {
+        const res = await fetch(asset.url);
+        if (res.ok) {
+          const buf = await res.arrayBuffer();
+          entries.push({ path: asset.path, content: new Uint8Array(buf) });
+        }
+      } catch {
+        // Ignoriere fehlendes Vorschaubild beim lokalen Packen
+      }
+    }
+
     const blob = createZipBlob(entries);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');

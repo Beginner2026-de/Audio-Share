@@ -1,6 +1,6 @@
 export interface ZipEntryInput {
   path: string;
-  content: string;
+  content: string | Uint8Array;
   executable?: boolean;
 }
 
@@ -32,7 +32,8 @@ export function createZipBlob(entries: ZipEntryInput[]): Blob {
 
   for (const entry of entries) {
     const nameBytes = encoder.encode(entry.path);
-    const dataBytes = encoder.encode(entry.content);
+    const dataBytes =
+      typeof entry.content === 'string' ? encoder.encode(entry.content) : entry.content;
     const crc = crc32(dataBytes);
     const extAttrs = entry.executable ? 0o100755 << 16 : 0o100644 << 16;
 
